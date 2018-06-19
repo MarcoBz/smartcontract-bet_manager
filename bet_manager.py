@@ -19,8 +19,8 @@ def Main(operation, args):
     :param args: list of arguments along with the operation (10)
     :return: bool, result of the execution (01)
     """
-    if operation == 'create_league':
-        return create_league(args)
+    if operation == 'create_group':
+        return create_group(args)
 
     elif operation == 'create_bet':
         return create_bet(args)
@@ -33,123 +33,165 @@ def Main(operation, args):
 
     elif operation == 'get_storage':
         return get_storage(args)
-    elif operation == 'get_league':
-        return get_league(args)
+    elif operation == 'get_group':
+        return get_group(args)
 
     # elif operation == 'get_bet_info':
     #     return get_bet_info(args)
 
-    else:
-        return False
+    elif operation == 'get_height':
+        return get_height(args)
 
-def create_league(args):
+    else:
+    	returnStr = "Error" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+def get_height(args):
+
+	current_block = GetHeight()
+	returnArray = []
+	returnArray.append(current_block)
+
+	return returnArray
+
+def create_group(args):
 
     if not len(args) % 2 != 0:
-        return "Not right number of arguments"
+    	returnStr = "Not right number of arguments" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     # check proposal existence
-    league_id = args[len(args) -1]
+    group_id = args[len(args) -1]
 
-    if Get(ctx, league_id):
-        return "Already a League with that name" 
+    if Get(ctx, group_id):
+    	returnStr = "Already a group with that name" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
   
     partecipants = (len(args) - 1 ) /2
     # iterate to get partecipants (address, nicknames)
-    league_partecipants = []
+    group_partecipants = []
+    index = 0
+
+    while index < (len(args) - 1)/2:
+    	address = args[index]
+        if len(address) != 20:
+        	returnStr = "Bad address format"
+	   		returnArray = []
+			returnArray.append(returnStr)
+            return returnArray   
+
     index = 0
     while index < (len(args) - 1)/2:
-
         address = args[index]
         nickname = args[index + partecipants]
-        # check address format
-        if len(address) != 20:
-            return "Bad address format"
-
-        league_partecipants.append([address, nickname])
-        partecipant_group = address
-        if Get(ctx, partecipant_group):
-        	fromStorage = Get(ctx, partecipant_group)
-        	partecipant_leagues = Deserialize(fromStorage)
-        	partecipant_leagues.append([league_id])      #[league_id, [bet1_id, bet2_id, ..]]
-        	partecipant_storage = Serialize(partecipant_leagues)
+        group_partecipants.append([address, nickname])
+        if Get(ctx, address):
+        	fromStorage = Get(ctx, address)
+        	partecipant_groups = Deserialize(fromStorage)
+        	partecipant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [history], total_balance ]
+        	partecipant_storage = Serialize(partecipant_groups)
         else:
-        	partecipant_leagues = []
-        	partecipant_leagues.append([league_id])
-        	partecipant_storage = Serialize(partecipant_leagues)
-        Put(ctx, partecipant_group, partecipant_storage)
+        	partecipant_groups = []
+        	partecipant_groups[0].append(group_id) 
+        	partecipant_storage = Serialize(partecipant_groups)
+        Put(ctx, address, partecipant_storage)
         index += 1
 
     # proposal arguments
-    league = []
-    league.append(league_partecipants)    # partecipants
+    group = []
+    group.append(group_partecipants)    # partecipants
 
-    league_bet = []
-    league.append(league_bet)
-
-    league.append(0)          # num bet
-    # ... other league parameter
+    group_bet = []
+    group.append(group_bet)
   
     # serialize proposal and write to storage
-    league_storage = Serialize(league)
-    Put(ctx, league_id, league_storage)
+    group_storage = Serialize(group)
+    Put(ctx, group_id, group_storage)
 
-
-    return "Ok"
+	returnStr = "Ok"
+	current_block = GetHeight()
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(current_block)
+    return returnArray
 
 def get_storage(args):
-	name = concat(args[0], 'Group')
-	print(name)
 	storage = Get(ctx, args[0])
-	print(storage)
 	data = Deserialize(storage)
-	index = 0
-	while index < len(data):
-		print(data[index])
-		index += 1
-	return True
+	returnStr = "Ok"
+	current_block = GetHeight()
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(data)
+	returnArray.append(current_block)
+    return returnArray
 
-def get_league(args):
+def get_group(args):
 
     if len(args) != 2:
-        return "Not right number of arguments"
+    	returnStr = "Not right number of arguments" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     asker_id = args[0]
-    league_id = args[1]
+    group_id = args[1]
 
     if len(asker_id) != 20:
-        return 'Bad address format'
-    # check league existence
+    	returnStr = "Bad address format"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
-    league_storage =  Get(ctx, league_id)
+    # check group existence
+
+    group_storage =  Get(ctx, group_id)
     
-    if not league_storage:
-        return "League does not exist"
+    if not group_storage:
+    	returnStr = "group does not exist"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
-    # check if asker is in the league
+    # check if asker is in the group
 
-    league = Deserialize(league_storage)
+    group = Deserialize(group_storage)
     index = 0
-    while index < len(league[0]):
-        if asker_id == league[0][index][0]:
-            in_league = True
+    while index < len(group[0]):
+        if asker_id == group[0][index][0]:
+            in_group = True
             break
         index += 1
 
-    if not in_league:
-        return 'Who wants the information is not in the league'
+    if not in_group:
+    	returnStr = 'Who wants the information is not in the group'
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     index = 0
-    while index < len(league[0]):
-        print(league[0][index][0])
-        print(league[0][index][1])
+    while index < len(group[0]):
+        print(group[0][index][0])
+        print(group[0][index][1])
         index += 1
 
     index = 0
-    while index < len(league[1]):
-        print(league[1][index])
+    while index < len(group[1]):
+        print(group[1][index])
         index += 1
 
-    return "Ok"
+	returnStr = "Ok"
+	current_block = GetHeight()
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(current_block)
+    return returnArray
 
 def create_bet(args):
     """
@@ -159,10 +201,13 @@ def create_bet(args):
     """
     
     if len(args) < 11:
-        return "Not right number of arguments"
+    	returnStr = "Not right number of arguments" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     creator_id = args[0]
-    league_id = args[1]
+    group_id = args[1]
     bet_text = args[2]
     blocks_accept = args[3]
     blocks_partecipate = args[4]
@@ -174,30 +219,51 @@ def create_bet(args):
 
     authorized = CheckWitness(creator_id)
     if not authorized:
-    	return 'Not authorized'
+    	returnStr = 'Not authorized' 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     for i in range(9, len(args)):
         print(i)
         results.append(args[i])
 
     if len(creator_id) != 20:
-        return 'Bad address format'
+    	returnStr = "Bad address format"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     # check if int
     if blocks_accept < 0 :
-        return "Error in one argument"
+    	returnStr ="Error in one argument"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     if blocks_convalidate < 0 :
-        return "Error in one argument"
+    	returnStr ="Error in one argument"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     if blocks_partecipate < 0 :
-        return "Error in one argument"
+    	returnStr ="Error in one argument"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     if amount_to_bet < 0 :
-        return "Error in one argument"
+    	returnStr ="Error in one argument"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
     
     if add_results != "y" and add_results != "n":
-        return "Error in one argument"
+    	returnStr ="Error in one argument"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
     
     """
     # sistemare il check del token
@@ -213,35 +279,44 @@ def create_bet(args):
         return False
     """
     
-    # check league existence
+    # check group existence
     
-    league_storage =  Get(ctx, league_id)
+    group_storage =  Get(ctx, group_id)
 
-    if not league_storage:
-        return "League does not exist"
+    if not group_storage:
+    	returnStr = "group does not exist"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
     
-    # check if creatore is in the league
+    # check if creatore is in the group
     
-    league = Deserialize(league_storage)
+    group = Deserialize(group_storage)
     index = 0
    
-    while index < len(league[0]):
-        if creator_id == league[0][index][0]:
-            in_league = True
+    while index < len(group[0]):
+        if creator_id == group[0][index][0]:
+            in_group = True
         index += 1
 
-    if not in_league:
-        return 'Creator is not in the league'
+    if not in_group:
+    	returnStr = 'Creator is not in the group'
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
     # check if bet already exists
 
-    bet_id = concat(league_id, bet_text)
+    bet_id = concat(group_id, bet_text)
     bet_storage = Get(ctx, bet_id)
 
     if bet_storage:
-        return "Bet already exists"
+    	returnStr = "Bet already exists"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
 
     bet = []
-    bet.append(league_id)
+    bet.append(group_id)
     bet.append(bet_text)
     bet.append(creator_id)
 
@@ -249,7 +324,7 @@ def create_bet(args):
     bet_results = [] #[result, betters, convalidators]
 
     for i in results:
-        bet_results.append([i,[],[]])
+        bet_results.append([i,[],[],[]])
 
     bet.append(bet_data)
     bet.append(bet_results)
@@ -258,16 +333,286 @@ def create_bet(args):
 
     bet.append(current_block)
 
-    bet_payed = True
-    bet.append(bet_payed)
+    bet_storage = Serialize(bet)
+    Put(ctx, bet_id, bet_storage)
+
+    group[1].append(bet_text)
+    group_storage = Serialize(group)
+    Put(ctx, group_id, group_storage)
+
+	returnStr = "Ok"
+	current_block = GetHeight()
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(current_block)
+    return returnArray
+
+def partecipate_bet(args):
+
+    if len(args) != 4:
+    	returnStr = "Not right number of arguments" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    better_id = args[0]
+    group_id = args[1]
+    bet_text = args[2]
+    result = args[3]
+    
+    
+    if len(better_id) != 20:
+    	returnStr = "Bad address format"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check group existence
+
+    group_storage =  Get(ctx, group_id)
+
+    if not group_storage:
+    	returnStr = "group does not exist"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+    
+    # check if bet exists
+    
+    bet_id = concat(group_id, bet_text)
+    bet_storage = Get(ctx, bet_id)
+    
+    if not bet_storage:
+    	returnStr = "Bet does not exist"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check if better is in the group
+    group = Deserialize(group_storage)
+    index = 0
+    
+    while index < len(group[0]):
+        if better_id == group[0][index][0]:
+            in_group = True
+        index += 1
+    
+    if not in_group:
+    	returnStr = 'Better is not in the group'
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+    
+    # check if better has already partecipate
+    if Get(ctx, concat(bet_id, better_id)):
+    	returnStr = 'Already partecipated'
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check if result exists
+   
+    bet = Deserialize(bet_storage)
+    index = 0
+    while index < len(bet[4]):
+        if bet[4][index][0] == result:
+            result_exists = True
+            break
+        index += 1
+
+    if not result_exists:
+        if bet[3][5] == 'y':
+            bet[4].append([result,[],[]])
+        else:
+	    	returnStr = 'Cannot bet on that result'
+	   		returnArray = []
+			returnArray.append(returnStr)
+	        return returnArray
+    
+    # check if bet is still open
+    
+    current_block = GetHeight()
+    block_at_creation = bet[5]
+
+    if current_block > block_at_creation + bet[3][0]:
+    	returnStr = 'Cannot partecipate at the bet'
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check if tx is right signed
+    if not CheckWitness(better_id):
+    	returnStr = "You are not who you say"
+   		returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check if voter has enough token in its address
+
+    # partecipate bet
+    index = 0
+    while index < len(bet[4]):
+        if bet[4][index][0] == result:            
+            bet[4][index][1].append(better_id)
+            break
+        index += 1
 
     bet_storage = Serialize(bet)
     Put(ctx, bet_id, bet_storage)
 
-    league[1].append(bet_text)
-    league_storage = Serialize(league)
-    Put(ctx, league_id, league_storage)
+    #register the flow of token
 
-    string = "Ok Bet created at : " + current_block
+    address_storage = Deserialize(Get(ctx, better_id))
+
+    address_storage[3] += bet[3][3]
+    current_transaction = []
+    current_transaction.append(bet_id)[]
+	current_block = GetHeight()
+    current_transaction.append("p") # "p : payment", "w : winning", "r : refund"
+    current_transaction.append(bet[3][3])
+    address_storage[2].append(current_transaction)
+
+    #save the bet in the personal storage of the better
+    current_bet = []
+    current_bet.append(bet_text)
+    current_bet.append(group_id)
+    blocks = []
+    blocks.append(bet[3][0])
+    blocks.append(bet[3][1])
+    blocks.append(bet[3][2])
+    current_bet.append(blocks)
+    current_bet.append(bet[5])
+    current_bet.append("0") # 0 : just payed, w : get win, r : refund
+    address_storage[1].append(current_bet)
+    Put(ctx, address, Serialize(address_storage))
+
+	returnStr = "Ok"
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(current_block)
+    return returnArray
+
+def convalidate_bet(args):
+
+    if len(args) != 4:
+    	returnStr = "Not right number of arguments" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    convalidator_id = args[0]
+    league_id = args[1]
+    bet_text = args[2]
+    result = args[3]
+
+    if len(convalidator_id) != 20:
+    	returnStr = "Bad address format" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check league existence
+
+    league_storage =  Get(ctx, league_id)
+
+    if not league_storage:
+    	returnStr = "League does not exist" 
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    # check if bet exists
+
+    bet_id = concat(league_id, bet_text)
+    bet_storage = Get(ctx, bet_id)
+
+    if not bet_storage:
+    	returnStr = "Bet does not exist"
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
     
-    return string
+    # check if convalidator is in the league
+    league = Deserialize(league_storage)
+    index = 0
+    while index < len(league[0]):
+        if convalidator_id == league[0][index][0]:
+            in_league = True
+        index += 1
+    
+    if not in_league:
+    	returnStr = 'Convalidator is not in the league'
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+    #check if is time to convalidate
+    bet = Deserialize(bet_storage)
+    current_block = GetHeight()
+    block_at_creation = bet[5]
+
+    if current_block > block_at_creation + bet[3][0] + bet[3][1]:
+        time_to_convalidate = True
+
+    if current_block > block_at_creation + bet[3][0] + bet[3][1] + bet[3][2]:
+        time_to_convalidate = False
+
+    if not time_to_convalidate:
+    	returnStr = "Cannot convalidate"
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray	
+
+    #check if convalidated result is one of the chosen
+    index = 0
+    while index < len(bet[4]):
+        if bet[4][index][0] == result: 
+            result_exists = True
+        index += 1
+
+    if not result_exists:
+    	returnStr = 'Result does not exists'
+	   	returnArray = []
+		returnArray.append(returnStr)
+        return returnArray
+
+#capire come fare per il pareggio
+    index = 0
+    while index < len(bet[4]):
+        jndex = 0
+        while jndex < len(bet[4][index][2]):
+            if convalidator_id == bet[4][index][2][jndex]:
+                already_convalidated = True
+                result_convalidated = bet[4][index][0]
+                chosen_index = index  
+            jndex += 1
+        index += 1 
+
+    if already_convalidated:
+        if result_convalidated == result:
+	    	returnStr = 'Already convalidated this result'
+		   	returnArray = []
+			returnArray.append(returnStr)
+	        return returnArray
+        else:
+            bet[4][chosen_index][2].remove(convalidator_id)
+            index = 0
+            while index < len(bet[4]):
+                if bet[4][index][0] == result:
+                     bet[4][index][2].append(convalidator_id)
+                index += 1
+    
+    else:
+        index = 0
+        while index < len(bet[4]):
+            if bet[4][index][0] == result:
+                bet[4][index][2].append(convalidator_id)
+            index += 1
+    bet_storage = Serialize(bet)
+    Put(ctx, bet_id, bet_storage)
+
+	returnStr = "Ok"
+	returnArray = []
+	returnArray.append(returnStr)
+	returnArray.append(current_block)
+    return returnArray
