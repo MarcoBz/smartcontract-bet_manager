@@ -42,6 +42,15 @@ def Main(operation, args):
     elif operation == 'get_height':
         return get_height(args)
 
+    elif operation == 'withdraw_win':
+        return withdraw_win(args)
+
+    elif operation == 'withdraw_refund':
+        return withdraw_refund(args)
+
+    elif operation == 'check_bet':
+        return check_bet(args)
+
     else:
     	returnStr = "Error" 
 	   	returnArray = []
@@ -320,7 +329,9 @@ def create_bet(args):
     bet.append(bet_text)
     bet.append(creator_id)
 
-    bet_data = [blocks_accept,blocks_partecipate,blocks_convalidate,amount_to_bet,token_used,add_results]
+    num_partecipants = len(group[1])
+
+    bet_data = [blocks_accept,blocks_partecipate,blocks_convalidate,amount_to_bet,token_used,add_results,num_partecipants]
     bet_results = [] #[result, betters, convalidators]
 
     for i in results:
@@ -464,7 +475,7 @@ def partecipate_bet(args):
 
     address_storage = Deserialize(Get(ctx, better_id))
 
-    address_storage[3] += bet[3][3]
+    address_storage[3] -= bet[3][3]
     current_transaction = []
     current_transaction.append(bet_id)[]
 	current_block = GetHeight()
@@ -484,7 +495,7 @@ def partecipate_bet(args):
     current_bet.append(bet[5])
     current_bet.append("0") # 0 : just payed, w : get win, r : refund
     address_storage[1].append(current_bet)
-    Put(ctx, address, Serialize(address_storage))
+    Put(ctx, better_id, Serialize(address_storage))
 
 	returnStr = "Ok"
 	returnArray = []
@@ -501,7 +512,7 @@ def convalidate_bet(args):
         return returnArray
 
     convalidator_id = args[0]
-    league_id = args[1]
+    group_id = args[1]
     bet_text = args[2]
     result = args[3]
 
@@ -511,19 +522,19 @@ def convalidate_bet(args):
 		returnArray.append(returnStr)
         return returnArray
 
-    # check league existence
+    # check group existence
 
-    league_storage =  Get(ctx, league_id)
+    group_storage =  Get(ctx, group_id)
 
-    if not league_storage:
-    	returnStr = "League does not exist" 
+    if not group_storage:
+    	returnStr = "group does not exist" 
 	   	returnArray = []
 		returnArray.append(returnStr)
         return returnArray
 
     # check if bet exists
 
-    bet_id = concat(league_id, bet_text)
+    bet_id = concat(group_id, bet_text)
     bet_storage = Get(ctx, bet_id)
 
     if not bet_storage:
@@ -532,16 +543,16 @@ def convalidate_bet(args):
 		returnArray.append(returnStr)
         return returnArray
     
-    # check if convalidator is in the league
-    league = Deserialize(league_storage)
+    # check if convalidator is in the group
+    group = Deserialize(group_storage)
     index = 0
-    while index < len(league[0]):
-        if convalidator_id == league[0][index][0]:
-            in_league = True
+    while index < len(group[0]):
+        if convalidator_id == group[0][index][0]:
+            in_group = True
         index += 1
     
-    if not in_league:
-    	returnStr = 'Convalidator is not in the league'
+    if not in_group:
+    	returnStr = 'Convalidator is not in the group'
 	   	returnArray = []
 		returnArray.append(returnStr)
         return returnArray
@@ -616,3 +627,372 @@ def convalidate_bet(args):
 	returnArray.append(returnStr)
 	returnArray.append(current_block)
     return returnArray
+
+def check_bet(args):
+
+    if len(args) != 3:
+        returnStr = "Not right number of arguments" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    checker_id = args[0]
+    group_id = args[1]
+    bet_text = args[2]
+
+    if len(checker_id) != 20:
+        returnStr = "Bad address format" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    # check if you are in the group
+
+    fromStorage = Get(ctx,  checker_id)
+    inGroup = False
+    if fromStorage:
+        partecipant_groups = Deserialize(fromStorage)
+
+        index = 0
+        while index < len(partecipant_groups):
+            if partecipant_groups[index] == group_id:
+                inGroup = True
+            index += 1
+
+    if not inGroup:
+        returnStr = "Not in the group"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet_id = concat(group_id, bet_text)
+    bet_storage = Get(ctx, bet_id)
+
+    if not bet_storage:
+        returnStr = "Bet does not exist"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet = Deserialize(bet_storage)
+    current_block = GetHeight()
+
+    bet_status = get_bet_status(bet, current_block)
+    player_status = get_player_status(bet, current_block, checker_id)
+    winningProposal = get_winning_proposal(bet, current_block)
+
+    returnArray = []
+
+    returnStr = "OK"
+    returnArray.append(returnStr)
+    returnArray.append(bet_status)
+    returnArray.append(player_status)
+
+    if winningProposal != 1 and winningProposal != 0:
+        returnArray.append(winningProposal)
+    else:
+        returnArray.append("")
+
+    returnArray.append(current_block)
+
+    return returnArray
+
+def withdraw_win(args)
+
+    if len(args) != 3:
+        returnStr = "Not right number of arguments" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    winner_id = args[0]
+    group_id = args[1]
+    bet_text = args[2]
+
+    if len(winner_id) != 20:
+        returnStr = "Bad address format" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    # check if you are in the group
+
+    winner_data = Get(ctx,  winner_id)
+    inGroup = False
+    if winner_data:
+        winner_storage = Deserialize(winner_data)
+
+        index = 0
+        while index < len(winner_storage[0]):
+            if winner_storage[0][index] == group_id:
+                inGroup = True
+            index += 1
+
+    if not inGroup:
+        returnStr = "Not in the group"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet_id = concat(group_id, bet_text)
+    bet_storage = Get(ctx, bet_id)
+
+    if not bet_storage:
+        returnStr = "Bet does not exist"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet = Deserialize(bet_storage)
+    current_block = GetHeight()
+
+    bet_status = get_bet_status(bet, current_block)
+
+    if bet_status != "convalidated"
+        returnStr = "Convalidation not closed" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray      
+
+   
+    player_status = get_player_status(bet, current_block, checker_id)
+    winningProposal = get_winning_proposal(bet, current_block)    
+
+    if winningProposal != 0 and winningProposal != 1:   
+        if player_status[0] == 0:
+            returnStr = "You did not partecipated" 
+            returnArray = []
+            returnArray.append(returnStr)
+            return returnArray       
+        else:
+            if player_status[0][1] != winningProposal:
+                returnStr = "Sorry you lost" 
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray 
+
+    elif winningProposal == 1:
+        returnStr = "There isn't any winning proposal" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray              
+
+    winning_fee = 0.02 # 2%
+
+    total_betters = 0
+    index = 0
+
+    while index < len(bet[4]):
+        total_betters += len(bet[4][index][1])
+        index += 1
+
+    number_winners = len(bet[4][winningProposal[1]][1])
+
+    total_bet_amount = total_betters * bet[3][3]
+    amount_to_winner = total_bet_amount / number_winners
+
+    withdrawal_amount = amount_to_winner * (1 - winning_fee)
+    dapp_amount = amount_to_winner - withdrawal_amount
+
+    winner_storage[3] += withdrawal_amount
+    current_transaction = []
+    current_transaction.append(bet_id)[]
+    current_transaction.append("w") # "p : payment", "w : winning", "r : refund"
+    current_transaction.append(withdrawal_amount)
+    winner_storage[2].append(current_transaction)
+
+    winner_storage[1][4] = "w"
+    Put(ctx, winner_id, Serialize(winner_storage))
+
+    bet[4][winningProposal[1]][3].append(winner_id)
+    bet_storage = Serialize(bet)
+    Put(ctx, bet_id, bet_storage)
+
+    returnArray = []
+
+    returnStr = "OK"
+    returnArray.append(returnStr)
+    returnArray.append(current_block)
+
+    return returnArray
+
+def withdraw_refund(args)
+
+    if len(args) != 3:
+        returnStr = "Not right number of arguments" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    player_id = args[0]
+    group_id = args[1]
+    bet_text = args[2]
+
+    if len(player_id) != 20:
+        returnStr = "Bad address format" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    # check if you are in the group
+
+    player_data = Get(ctx,  player_id)
+    inGroup = False
+    if player_data:
+        player_storage = Deserialize(player_data)
+
+        index = 0
+        while index < len(player_storage[0]):
+            if player_storage[0][index] == group_id:
+                inGroup = True
+            index += 1
+
+    if not inGroup:
+        returnStr = "Not in the group"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet_id = concat(group_id, bet_text)
+    bet_storage = Get(ctx, bet_id)
+
+    if not bet_storage:
+        returnStr = "Bet does not exist"
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray
+
+    bet = Deserialize(bet_storage)
+    current_block = GetHeight()
+
+    bet_status = get_bet_status(bet, current_block)
+
+    if bet_status != "convalidated"
+        returnStr = "Convalidation not closed" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray      
+
+   
+    player_status = get_player_status(bet, current_block, checker_id)
+    winningProposal = get_winning_proposal(bet, current_block)    
+
+    if winningProposal == 1:   
+        if player_status[0] == 0:
+            returnStr = "You did not partecipated" 
+            returnArray = []
+            returnArray.append(returnStr)
+            return returnArray       
+
+    else:
+        returnStr = "There isn't any refund" 
+        returnArray = []
+        returnArray.append(returnStr)
+        return returnArray              
+
+    refund_fee = 0.01 # 2%
+
+    withdrawal_amount = bet[3][3] * (1 - refund_fee)
+    dapp_amount = bet[3][3] - withdrawal_amount
+
+    player_storage[3] += withdrawal_amount
+    current_transaction = []
+    current_transaction.append(bet_id)[]
+    current_transaction.append("r") # "p : payment", "w : winning", "r : refund"
+    current_transaction.append(withdrawal_amount)
+    player_storage[2].append(current_transaction)
+
+    player_storage[1][4] = "r"
+    Put(ctx, player_id, Serialize(player_storage))
+
+    bet[4][winningProposal[1]][3].append(player_id)
+    bet_storage = Serialize(bet)
+    Put(ctx, bet_id, bet_storage)
+
+    returnArray = []
+
+    returnStr = "OK"
+    returnArray.append(returnStr)
+    returnArray.append(current_block)
+
+    return returnArray
+
+
+def get_bet_status(bet, current_block):
+    
+    if current_block < bet[5] + bet[3][0]:
+        returnStr = "open"
+
+    elif current_block < bet[5] + bet[3][1]:
+        returnStr = "closed"
+
+    elif current_block < bet[5] + bet[3][2]:
+        returnStr = "onConvalidation"
+
+    else:
+        returnStr = "convalidated"
+    
+    return returnStr
+
+def get_winning_proposal(bet, current_block):
+    if current_block > bet[5] + bet[3][0] + bet[3][1] + bet[3][2]:
+        if bet[7] % 2 == 0:
+            magic_number = 1 + (bet[7]  / 2)
+        else: 
+            magic_number = (bet[7] + 1) / 2
+
+        index = 0
+
+        while index < len(bet[4]):
+            if len(bet[4][index][2]) >= magic_number:
+                returnStr = bet[4][index][0]
+                return returnStr
+            index += 1
+
+        return 1
+
+    else:
+        return 0
+
+def get_player_status(bet, current_block, current_address):
+
+    player_status  = []
+    player_status.append([0]) # 0 or [1, partecipated proposal]
+    player_status.append([0]) # 0 or [1, convalidated proposal]
+    player_status.append([0]) # 0 not convalidated, w winning, l loseing, r refund
+
+    index = 0
+    while index < len(bet[4]):
+        jndex = 0
+            while jndex < len(bet[4][index][1]):
+                if current_address == bet[4][index][1][jndex]:
+                    partecipated_bet = []
+                    partecipated_bet.append(1)
+                    partecipated_bet.append(bet[4][index][0])
+                    player_status[0] = partecipated_bet
+                jndex += 1
+        jndex = 0
+            while jndex < len(bet[4][index][2]):
+                if current_address == bet[4][index][2][jndex]:
+                    convalidated_bet = []
+                    convalidated_bet.append(1)
+                    convalidated_bet.append(bet[4][index][0])
+                    player_status[1] = convalidated_bet
+                jndex += 1
+        index += 1
+
+    winningProposal = get_winning_proposal(bet, current_block)
+
+    if winningProposal == 1:
+        player_status[2] = "r"
+
+    elif winningProposal != 0 :
+        if player_status[0] != 0:
+            if player_status[0][1] == winningProposal:
+                player_status[2] = "w"
+            else:
+                player_status[2] = "l"
+
+    return player_status
+
+
