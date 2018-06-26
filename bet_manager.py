@@ -493,14 +493,18 @@ def partecipate_bet(args):
     current_bet.append(bet_text)
     current_bet.append(group_id)
     blocks = []
-    blocks.append(bet[3][0])
-    blocks.append(bet[3][1])
-    blocks.append(bet[3][2])
+    blocks.append(0)
+    blocks.append(0)
+    blocks.append(0)
+    blocks[0] = blocks[0] + bet[3][0]
+    blocks[1] = blocks[1] + bet[3][1]
+    blocks[2] = blocks[2] + bet[3][2]
     current_bet.append(blocks)
-    current_bet.append(bet[5])
+    current_bet.append(0)
+    current_bet[3] = current_bet[3] + bet[5]
     current_bet.append("0") # 0 : just payed, w : get win, r : refund
     current_bet.append(0)
-    current_bet[2] = current_bet[2] + bet[3][3]
+    current_bet[5] = current_bet[5] + bet[3][3]
     address_storage[1].append(current_bet)
     Put(ctx, better_id, Serialize(address_storage))
 
