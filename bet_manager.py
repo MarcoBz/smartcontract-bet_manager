@@ -419,11 +419,18 @@ def partecipate_bet(args):
         return returnArray
     
     # check if better has already partecipate
-    if Get(ctx, concat(bet_id, better_id)):
-        returnStr = 'Already partecipated'
-        returnArray = []
-        returnArray.append(returnStr)
-        return returnArray
+
+    address_storage = Deserialize(Get(ctx, better_id))
+
+    index = 0
+    while index < len(address_storage[1]):
+        if address_storage[1][index][0] == bet_text:
+            if address_storage[1][index][1] == group_id:
+                returnStr = 'Already partecipated'
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray            
+        index += 1
 
     # check if result exists
    
@@ -479,13 +486,13 @@ def partecipate_bet(args):
 
     address_storage = Deserialize(Get(ctx, better_id))
 
-    address_storage[3] = address_storage[3] - bet[3][3]
+    address_storage[3] = address_storage[3] - ( bet[3][3] * 100000000)
     current_transaction = []
     current_transaction.append(bet_id)
     current_block = GetHeight()
     current_transaction.append("p") # "p : payment", "w : winning", "r : refund"
     current_transaction.append(0)
-    current_transaction[2] = current_transaction[2] + bet[3][3]
+    current_transaction[2] = current_transaction[2] + ( bet[3][3] * 100000000)
     address_storage[2].append(current_transaction)
 
     #save the bet in the personal storage of the better
@@ -504,7 +511,7 @@ def partecipate_bet(args):
     current_bet[3] = current_bet[3] + bet[5]
     current_bet.append("0") # 0 : just payed, w : get win, r : refund
     current_bet.append(0)
-    current_bet[5] = current_bet[5] + bet[3][3]
+    current_bet[5] = current_bet[5] + ( bet[3][3] * 100000000)
     address_storage[1].append(current_bet)
     Put(ctx, better_id, Serialize(address_storage))
 
@@ -782,12 +789,18 @@ def withdraw_win(args):
     player_status = get_player_status(bet, current_block, winner_id)
     winningProposal = get_winning_proposal(bet, current_block)    
 
-    if winningProposal != 0 and winningProposal != 1:   
-        if player_status[0] == 0:
-            returnStr = "You did not partecipated" 
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray       
+    if winningProposal != 0 and winningProposal != 1: 
+        if len(player_status[0]) == 1:
+            if player_status[0] == 0:
+                returnStr = "You did not partecipated" 
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray  
+            else:
+                returnStr = "Unexpected error" 
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray           
         else:
             if player_status[0][1] != winningProposal:
                 returnStr = "Sorry you lost" 
@@ -801,20 +814,21 @@ def withdraw_win(args):
         returnArray.append(returnStr)
         return returnArray              
 
-    winning_fee = 0 # 2%
+    winning_fee = 2000000 # 2%
 
     total_betters = 0
     index = 0
 
     while index < len(bet[4]):
         total_betters += len(bet[4][index][1])
+        if bet[4][index][0] == winningProposal: 
+            number_winners = len(bet[4][index][1])
+            bet[4][jndex][3].append(winner_id)
         index += 1
+         
 
-    number_winners = len(bet[4][winningProposal[1]][1])
-
-    total_bet_amount = total_betters * bet[3][3]
+    total_bet_amount = total_betters * ( bet[3][3] * 100000000)
     amount_to_winner = total_bet_amount / number_winners
-
     withdrawal_amount = amount_to_winner * (1 - winning_fee)
     dapp_amount = amount_to_winner - withdrawal_amount
 
@@ -825,7 +839,12 @@ def withdraw_win(args):
     current_transaction.append(withdrawal_amount)
     winner_storage[2].append(current_transaction)
 
-    winner_storage[1][4] = "w"
+    index = 0
+    while index < len(winner_storage[1]): 
+        if winner_storage[1][index][0] == bet_text:
+            if winner_storage[1][index][1] == group_id:
+                winner_storage[1][index][4] = "w"
+        index += 1
     Put(ctx, winner_id, Serialize(winner_storage))
 
     bet[4][winningProposal[1]][3].append(winner_id)
@@ -859,7 +878,6 @@ def withdraw_refund(args):
         return returnArray
 
     # check if you are in the group
-
     player_data = Get(ctx,  player_id)
     inGroup = False
     if player_data:
@@ -899,14 +917,19 @@ def withdraw_refund(args):
 
    
     player_status = get_player_status(bet, current_block, player_id)
-    winningProposal = get_winning_proposal(bet, current_block)    
-
-    if winningProposal == 1:   
-        if player_status[0] == 0:
-            returnStr = "You did not partecipated" 
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray       
+    winningProposal = get_winning_proposal(bet, current_block)
+    if winningProposal == 1: 
+        if len(player_status[0]) == 1:
+            if player_status[0] == 0:
+                returnStr = "You did not partecipated" 
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray  
+            else:
+                returnStr = "Unexpected error" 
+                returnArray = []
+                returnArray.append(returnStr)
+                return returnArray                  
 
     else:
         returnStr = "There isn't any refund" 
@@ -914,11 +937,9 @@ def withdraw_refund(args):
         returnArray.append(returnStr)
         return returnArray              
 
-    refund_fee = 0 # 1%
-
-    withdrawal_amount = bet[3][3] * (1 - refund_fee)
-    dapp_amount = bet[3][3] - withdrawal_amount
-
+    refund_fee = 1000000 # 1%
+    withdrawal_amount = ( bet[3][3] * 100000000) * (1 - refund_fee)
+    dapp_amount = ( bet[3][3] * 100000000) - withdrawal_amount
     player_storage[3] = player_storage[3] + withdrawal_amount
     current_transaction = []
     current_transaction.append(bet_id)
@@ -926,13 +947,23 @@ def withdraw_refund(args):
     current_transaction.append(withdrawal_amount)
     player_storage[2].append(current_transaction)
 
-    player_storage[1][4] = "r"
+    index = 0
+    while index < len(player_storage[1]): 
+        if player_storage[1][index][0] == bet_text:
+            if player_storage[1][index][1] == group_id:
+                player_storage[1][index][4] = "r"
+        index += 1
     Put(ctx, player_id, Serialize(player_storage))
-
-    bet[4][winningProposal[1]][3].append(player_id)
+    
+    jndex = 0
+    while jndex < len(bet[4]):
+        if bet[4][jndex][0] == winningProposal:
+            bet[4][jndex][3].append(player_id)
+            break
+        jndex += 1
     bet_storage = Serialize(bet)
     Put(ctx, bet_id, bet_storage)
-
+    print('11')
     returnArray = []
 
     returnStr = "OK"
@@ -947,10 +978,10 @@ def get_bet_status(bet, current_block):
     if current_block < bet[5] + bet[3][0]:
         returnStr = "open"
 
-    elif current_block < bet[5] + bet[3][1]:
+    elif current_block < bet[5] + bet[3][0] + bet[3][1]:
         returnStr = "closed"
 
-    elif current_block < bet[5] + bet[3][2]:
+    elif current_block < bet[5] + bet[3][0] + bet[3][1] + bet[3][2]:
         returnStr = "onConvalidation"
 
     else:
