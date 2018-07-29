@@ -34,9 +34,6 @@ def Main(operation, args):
     elif operation == 'get_storage':
         return get_storage(args)
 
-    elif operation == 'get_group':
-        return get_group(args)
-
     elif operation == 'get_height':
         return get_height(args)
 
@@ -45,9 +42,6 @@ def Main(operation, args):
 
     elif operation == 'withdraw_refund':
         return withdraw_refund(args)
-
-    elif operation == 'check_bet':
-        return check_bet(args)
 
     else:
         returnStr = "Error" 
@@ -63,8 +57,10 @@ def get_height(args):
 
     return returnArray
 
+# function to create a new group
 def create_group(args):
 
+    #check number of arguments
     if not len(args) % 2 != 0:
         returnStr = "Not right number of arguments" 
         returnArray = []
@@ -80,7 +76,8 @@ def create_group(args):
         returnArray.append(returnStr)
         return returnArray
   
-    partecipants = (len(args) - 1 ) /2
+    partecipants = (len(args) - 1 ) / 2
+
     # iterate to get partecipants (address, nicknames)
     group_partecipants = []
     index = 0
@@ -105,6 +102,7 @@ def create_group(args):
             partecipant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [transactions], total_balance, total_balance sign ( 0 positiv, 1 negative) ]
             partecipant_storage = Serialize(partecipant_groups)
         else:
+            #create storage for the current address
             partecipant_groups = []
             partecipant_groups.append([])
             partecipant_groups.append([]) 
@@ -146,74 +144,10 @@ def get_storage(args):
     returnArray.append(current_block)
     return returnArray
 
-def get_group(args):
-
-    if len(args) != 2:
-        returnStr = "Not right number of arguments" 
-        returnArray = []
-        returnArray.append(returnStr)
-        return returnArray
-
-    asker_id = args[0]
-    group_id = args[1]
-
-    if len(asker_id) != 20:
-        returnStr = "Bad address format"
-        returnArray = []
-        returnArray.append(returnStr)
-        return returnArray
-
-    # check group existence
-
-    group_storage =  Get(ctx, group_id)
-    
-    if not group_storage:
-        returnStr = "group does not exist"
-        returnArray = []
-        returnArray.append(returnStr)
-        return returnArray
-
-    # check if asker is in the group
-
-    group = Deserialize(group_storage)
-    index = 0
-    while index < len(group[0]):
-        if asker_id == group[0][index][0]:
-            in_group = True
-            break
-        index += 1
-
-    if not in_group:
-        returnStr = 'Who wants the information is not in the group'
-        returnArray = []
-        returnArray.append(returnStr)
-        return returnArray
-
-    index = 0
-    while index < len(group[0]):
-        print(group[0][index][0])
-        print(group[0][index][1])
-        index += 1
-
-    index = 0
-    while index < len(group[1]):
-        print(group[1][index])
-        index += 1
-
-    returnStr = "Ok"
-    current_block = GetHeight()
-    returnArray = []
-    returnArray.append(returnStr)
-    returnArray.append(current_block)
-    return returnArray
-
+#function to create a new bet
 def create_bet(args):
-    """
-    Register a New prosal
-    :param args: list of arguments [ ]
-    :return: bool, result of the execution
-    """
     
+    #check arguments 
     if len(args) < 11:
         returnStr = "Not right number of arguments" 
         returnArray = []
@@ -241,39 +175,40 @@ def create_bet(args):
     for i in range(9, len(args)):
         results.append(args[i])
 
+    #check address format of sender
     if len(creator_id) != 20:
         returnStr = "Bad address format"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
-    # check if int
+    # check arguments format
     if blocks_accept < 0 :
-        returnStr ="Error in one argument"
+        returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
     if blocks_validate < 0 :
-        returnStr ="Error in one argument"
+        returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
     if blocks_partecipate < 0 :
-        returnStr ="Error in one argument"
+        returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
     if amount_to_bet < 0 :
-        returnStr ="Error in one argument"
+        returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
     
-    if add_results != 0 and add_results != 1: # 0 : 'y' can add proposal, '1' cannot add proposal
-        returnStr ="Error in one argument"
+    if add_results != 0 and add_results != 1: # '0' : can add proposal, '1' cannot add proposal
+        returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
@@ -302,7 +237,7 @@ def create_bet(args):
         returnArray.append(returnStr)
         return returnArray
     
-    # check if creatore is in the group
+    # check if creator is in the group
     
     group = Deserialize(group_storage)
     index = 0
@@ -317,6 +252,7 @@ def create_bet(args):
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
+
     # check if bet already exists
 
     bet_id = concat(group_id, bet_text)
@@ -336,15 +272,15 @@ def create_bet(args):
     num_partecipants = len(group[0])
 
     bet_data = [blocks_accept,blocks_partecipate,blocks_validate,amount_to_bet,token_used,add_results,num_partecipants]
-    bet_results = [] #[result, betters, validators]
+    bet_results = [] 
 
     for i in results:
-        bet_results.append([i,[],[],[]])
+        bet_results.append([i,[],[],[]]) #(bet_text, [participants], [convalidators], [already payed])
 
     bet.append(bet_data)
     bet.append(bet_results)
 
-    current_block = GetHeight()#ADD BLOCK WHEN BET IS CREATED
+    current_block = GetHeight() #ADD BLOCK WHEN BET IS CREATED
 
     bet.append(current_block)
 
@@ -362,8 +298,10 @@ def create_bet(args):
     returnArray.append(current_block)
     return returnArray
 
+#function to participate at the bet
 def partecipate_bet(args):
 
+    #check arguments 
     if len(args) != 4:
         returnStr = "Not right number of arguments" 
         returnArray = []
@@ -418,7 +356,7 @@ def partecipate_bet(args):
         returnArray.append(returnStr)
         return returnArray
     
-    # check if better has already partecipate
+    # check if better has already participate
 
     address_storage = Deserialize(Get(ctx, better_id))
 
@@ -442,6 +380,7 @@ def partecipate_bet(args):
             break
         index += 1
 
+    #if player can add a result
     if not result_exists:
         if bet[3][5] == 1:
             bet[4].append([result,[],[],[]])
@@ -506,7 +445,7 @@ def partecipate_bet(args):
     current_transaction.append(bet_text)
     current_transaction.append(group_id)
     current_block = GetHeight()
-    current_transaction.append(0) # 0 : payment", 1 : winning", 1 : refund"
+    current_transaction.append(0) # "0" : payment, "1" : winning, "2" : refund
     current_transaction.append(0)
     current_transaction[3] = current_transaction[3] + bet[3][3] 
     address_storage[2].append(current_transaction)
@@ -525,7 +464,7 @@ def partecipate_bet(args):
     current_bet.append(blocks)
     current_bet.append(0)
     current_bet[3] = current_bet[3] + bet[5]
-    current_bet.append(0) # 0 : payment", 1 : winning", 1 : refund"
+    current_bet.append(0) #"0" : payment, "1" : winning, "2" : refund
     current_bet.append(0)
     current_bet[5] = current_bet[5] + bet[3][3] 
     address_storage[1].append(current_bet)
@@ -537,6 +476,7 @@ def partecipate_bet(args):
     returnArray.append(current_block)
     return returnArray
 
+#function to validate a result of the bet
 def validate_bet(args):
 
     if len(args) != 4:
@@ -628,7 +568,6 @@ def validate_bet(args):
         returnArray.append(returnStr)
         return returnArray
 
-#capire come fare per il pareggio
     index = 0
     while index < len(bet[4]):
         jndex = 0
@@ -654,7 +593,6 @@ def validate_bet(args):
                     newConvArray.append(bet[4][chosen_index][2][jndex])
                 jndex += 1
             bet[4][chosen_index][2] = newConvArray   
-            #bet[4][chosen_index][2].remove(validator_id)
             index = 0
             while index < len(bet[4]):
                 if bet[4][index][0] == result:
@@ -676,75 +614,7 @@ def validate_bet(args):
     returnArray.append(current_block)
     return returnArray
 
-def check_bet(args):
-
-        if len(args) != 3:
-            returnStr = "Not right number of arguments" 
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray
-
-        checker_id = args[0]
-        group_id = args[1]
-        bet_text = args[2]
-
-        if len(checker_id) != 20:
-            returnStr = "Bad address format" 
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray
-
-        # check if you are in the group
-
-        fromStorage = Get(ctx,  checker_id)
-        inGroup = False
-        if fromStorage:
-            partecipant_groups = Deserialize(fromStorage)
-
-            index = 0
-            while index < len(partecipant_groups[0]):
-                if partecipant_groups[0][index] == group_id:
-                    inGroup = True
-                index += 1
-
-        if not inGroup:
-            returnStr = "Not in the group"
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray
-
-        bet_id = concat(group_id, bet_text)
-        bet_storage = Get(ctx, bet_id)
-
-        if not bet_storage:
-            returnStr = "Bet does not exist"
-            returnArray = []
-            returnArray.append(returnStr)
-            return returnArray
-
-        bet = Deserialize(bet_storage)
-        current_block = GetHeight()
-
-        bet_status = get_bet_status(bet, current_block)
-        player_status = get_player_status(bet, current_block, checker_id)
-        winningProposal = get_winning_proposal(bet, current_block)
-
-        returnArray = []
-
-        returnStr = "OK"
-        returnArray.append(returnStr)
-        returnArray.append(bet_status)
-        returnArray.append(player_status)
-
-        if winningProposal != 1 and winningProposal != 0:
-            returnArray.append(winningProposal)
-        else:
-            returnArray.append("")
-
-        returnArray.append(current_block)
-
-        return returnArray
-
+#function to withdraw winning
 def withdraw_win(args):
 
     if len(args) != 3:
@@ -832,7 +702,7 @@ def withdraw_win(args):
         return returnArray              
     index = 0
 
-    winning_fee = 0 # 2%
+    winning_fee = 0 
 
     total_betters = 0
     index = 0
@@ -866,7 +736,7 @@ def withdraw_win(args):
     current_transaction = []
     current_transaction.append(bet_text)
     current_transaction.append(group_id)
-    current_transaction.append(1) # 0 : payment", 1 : winning", 2 : refund"
+    current_transaction.append(1) # "0" : payment, "1" : winning, "2" : refund
     current_transaction.append(0)
     current_transaction[3] = current_transaction[3] + withdrawal_amount
     winner_storage[2].append(current_transaction)
@@ -893,6 +763,7 @@ def withdraw_win(args):
 
     return returnArray
 
+#function to withdraw refund
 def withdraw_refund(args):
 
     if len(args) != 3:
@@ -996,7 +867,7 @@ def withdraw_refund(args):
     current_transaction = []
     current_transaction.append(bet_text)
     current_transaction.append(group_id)
-    current_transaction.append(2) # "0 : payment", "1 : winning", "2 : refund"
+    current_transaction.append(2) # "0" : payment, "1" : winning, "2" : refund
     current_transaction.append(0)
     current_transaction[3] = current_transaction[3] + withdrawal_amount
     player_storage[2].append(current_transaction)
