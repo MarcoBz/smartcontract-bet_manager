@@ -28,8 +28,8 @@ def Main(operation, args):
     elif operation == 'partecipate_bet':
          return partecipate_bet(args)
 
-    elif operation == 'convalidate_bet':
-         return convalidate_bet(args)
+    elif operation == 'validate_bet':
+         return validate_bet(args)
 
     elif operation == 'get_storage':
         return get_storage(args)
@@ -102,8 +102,7 @@ def create_group(args):
         if Get(ctx, address):
             fromStorage = Get(ctx, address)
             partecipant_groups = Deserialize(fromStorage)
-
-            partecipant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [history], total_balance ]
+            partecipant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [transactions], total_balance, total_balance sign ( 0 positiv, 1 negative) ]
             partecipant_storage = Serialize(partecipant_groups)
         else:
             partecipant_groups = []
@@ -111,6 +110,7 @@ def create_group(args):
             partecipant_groups.append([]) 
             partecipant_groups.append([]) 
             partecipant_groups.append(0) 
+            partecipant_groups.append(0)
             partecipant_groups[0].append(group_id) 
             partecipant_storage = Serialize(partecipant_groups)
         Put(ctx, address, partecipant_storage)
@@ -127,8 +127,8 @@ def create_group(args):
     group_storage = Serialize(group)
     Put(ctx, group_id, group_storage)
 
-    returnStr = "Ok"
     current_block = GetHeight()
+    returnStr = "Ok"
     returnArray = []
     returnArray.append(returnStr)
     returnArray.append(current_block)
@@ -225,7 +225,7 @@ def create_bet(args):
     bet_text = args[2]
     blocks_accept = args[3]
     blocks_partecipate = args[4]
-    blocks_convalidate = args[5]
+    blocks_validate = args[5]
     amount_to_bet = args[6]
     token_used = args[7]
     add_results = args[8]
@@ -254,7 +254,7 @@ def create_bet(args):
         returnArray.append(returnStr)
         return returnArray
 
-    if blocks_convalidate < 0 :
+    if blocks_validate < 0 :
         returnStr ="Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
@@ -272,7 +272,7 @@ def create_bet(args):
         returnArray.append(returnStr)
         return returnArray
     
-    if add_results != "y" and add_results != "n":
+    if add_results != 0 and add_results != 1: # 0 : 'y' can add proposal, '1' cannot add proposal
         returnStr ="Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
@@ -335,8 +335,8 @@ def create_bet(args):
 
     num_partecipants = len(group[0])
 
-    bet_data = [blocks_accept,blocks_partecipate,blocks_convalidate,amount_to_bet,token_used,add_results,num_partecipants]
-    bet_results = [] #[result, betters, convalidators]
+    bet_data = [blocks_accept,blocks_partecipate,blocks_validate,amount_to_bet,token_used,add_results,num_partecipants]
+    bet_results = [] #[result, betters, validators]
 
     for i in results:
         bet_results.append([i,[],[],[]])
@@ -443,8 +443,8 @@ def partecipate_bet(args):
         index += 1
 
     if not result_exists:
-        if bet[3][5] == 'y':
-            bet[4].append([result,[],[]])
+        if bet[3][5] == 1:
+            bet[4].append([result,[],[],[]])
         else:
             returnStr = 'Cannot bet on that result'
             returnArray = []
@@ -486,13 +486,29 @@ def partecipate_bet(args):
 
     address_storage = Deserialize(Get(ctx, better_id))
 
-    address_storage[3] = address_storage[3] - ( bet[3][3] * 100000000)
+    if address_storage[4] == 0:
+        sign = 1
+    else:
+        sign = -1
+    
+
+    total_balance = address_storage[3] * sign
+    new_total_balance = total_balance - bet[3][3]
+
+    if new_total_balance >= 0 :
+        address_storage[3] = new_total_balance
+        address_storage[4] = 0
+    else :
+        address_storage[3] = new_total_balance * -1
+        address_storage[4] = 1
+
     current_transaction = []
-    current_transaction.append(bet_id)
+    current_transaction.append(bet_text)
+    current_transaction.append(group_id)
     current_block = GetHeight()
-    current_transaction.append("p") # "p : payment", "w : winning", "r : refund"
+    current_transaction.append(0) # 0 : payment", 1 : winning", 1 : refund"
     current_transaction.append(0)
-    current_transaction[2] = current_transaction[2] + ( bet[3][3] * 100000000)
+    current_transaction[3] = current_transaction[3] + bet[3][3] 
     address_storage[2].append(current_transaction)
 
     #save the bet in the personal storage of the better
@@ -509,9 +525,9 @@ def partecipate_bet(args):
     current_bet.append(blocks)
     current_bet.append(0)
     current_bet[3] = current_bet[3] + bet[5]
-    current_bet.append("0") # 0 : just payed, w : get win, r : refund
+    current_bet.append(0) # 0 : payment", 1 : winning", 1 : refund"
     current_bet.append(0)
-    current_bet[5] = current_bet[5] + ( bet[3][3] * 100000000)
+    current_bet[5] = current_bet[5] + bet[3][3] 
     address_storage[1].append(current_bet)
     Put(ctx, better_id, Serialize(address_storage))
 
@@ -521,7 +537,7 @@ def partecipate_bet(args):
     returnArray.append(current_block)
     return returnArray
 
-def convalidate_bet(args):
+def validate_bet(args):
 
     if len(args) != 4:
         returnStr = "Not right number of arguments" 
@@ -529,12 +545,12 @@ def convalidate_bet(args):
         returnArray.append(returnStr)
         return returnArray
 
-    convalidator_id = args[0]
+    validator_id = args[0]
     group_id = args[1]
     bet_text = args[2]
     result = args[3]
 
-    if len(convalidator_id) != 20:
+    if len(validator_id) != 20:
         returnStr = "Bad address format" 
         returnArray = []
         returnArray.append(returnStr)
@@ -561,45 +577,45 @@ def convalidate_bet(args):
         returnArray.append(returnStr)
         return returnArray
     
-    # check if convalidator is in the group
+    # check if validator is in the group
     group = Deserialize(group_storage)
     index = 0
     while index < len(group[0]):
-        if convalidator_id == group[0][index][0]:
+        if validator_id == group[0][index][0]:
             in_group = True
         index += 1
     
     if not in_group:
-        returnStr = 'Convalidator is not in the group'
+        returnStr = 'validator is not in the group'
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
     # check if tx is right signed
-    if not CheckWitness(convalidator_id):
+    if not CheckWitness(validator_id):
         returnStr = "You are not who you say"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
 
-    #check if is time to convalidate
+    #check if is time to validate
     bet = Deserialize(bet_storage)
     current_block = GetHeight()
     block_at_creation = bet[5]
 
     if current_block > block_at_creation + bet[3][0] + bet[3][1]:
-        time_to_convalidate = True
+        time_to_validate = True
 
     if current_block > block_at_creation + bet[3][0] + bet[3][1] + bet[3][2]:
-        time_to_convalidate = False
+        time_to_validate = False
 
-    if not time_to_convalidate:
-        returnStr = "Cannot convalidate"
+    if not time_to_validate:
+        returnStr = "Cannot validate"
         returnArray = []
         returnArray.append(returnStr)
         return returnArray  
 
-    #check if convalidated result is one of the chosen
+    #check if validated result is one of the chosen
     index = 0
     while index < len(bet[4]):
         if bet[4][index][0] == result: 
@@ -617,16 +633,16 @@ def convalidate_bet(args):
     while index < len(bet[4]):
         jndex = 0
         while jndex < len(bet[4][index][2]):
-            if convalidator_id == bet[4][index][2][jndex]:
-                already_convalidated = True
-                result_convalidated = bet[4][index][0]
+            if validator_id == bet[4][index][2][jndex]:
+                already_validated = True
+                result_validated = bet[4][index][0]
                 chosen_index = index  
             jndex += 1
         index += 1 
 
-    if already_convalidated:
-        if result_convalidated == result:
-            returnStr = 'Already convalidated this result'
+    if already_validated:
+        if result_validated == result:
+            returnStr = 'Already validated this result'
             returnArray = []
             returnArray.append(returnStr)
             return returnArray
@@ -634,22 +650,22 @@ def convalidate_bet(args):
             newConvArray = []
             jndex = 0
             while jndex < bet[4][chosen_index][2]:
-                if bet[4][chosen_index][2][index] != convalidator_id:
+                if bet[4][chosen_index][2][index] != validator_id:
                     newConvArray.append(bet[4][chosen_index][2][jndex])
                 jndex += 1
             bet[4][chosen_index][2] = newConvArray   
-            #bet[4][chosen_index][2].remove(convalidator_id)
+            #bet[4][chosen_index][2].remove(validator_id)
             index = 0
             while index < len(bet[4]):
                 if bet[4][index][0] == result:
-                     bet[4][index][2].append(convalidator_id)
+                     bet[4][index][2].append(validator_id)
                 index += 1
     
     else:
         index = 0
         while index < len(bet[4]):
             if bet[4][index][0] == result:
-                bet[4][index][2].append(convalidator_id)
+                bet[4][index][2].append(validator_id)
             index += 1
     bet_storage = Serialize(bet)
     Put(ctx, bet_id, bet_storage)
@@ -784,8 +800,8 @@ def withdraw_win(args):
     current_block = GetHeight()
     bet_status = get_bet_status(bet, current_block)
 
-    if bet_status != "convalidated":
-        returnStr = "Convalidation not closed" 
+    if bet_status != "validated":
+        returnStr = "validation not closed" 
         returnArray = []
         returnArray.append(returnStr)
         return returnArray    
@@ -816,7 +832,7 @@ def withdraw_win(args):
         return returnArray              
     index = 0
 
-    winning_fee = 2000000 # 2%
+    winning_fee = 0 # 2%
 
     total_betters = 0
     index = 0
@@ -826,27 +842,45 @@ def withdraw_win(args):
             number_winners = len(bet[4][index][1])
             bet[4][index][3].append(winner_id)
         index += 1
-    total_bet_amount = total_betters * ( bet[3][3] * 100000000)
+
+    total_bet_amount = total_betters * bet[3][3] 
     amount_to_winner = total_bet_amount / number_winners
-    withdrawal_amount = amount_to_winner - (bet[3][3] * winning_fee)
+    withdrawal_amount = (amount_to_winner * (100  - winning_fee)) / 100
     dapp_amount = amount_to_winner - withdrawal_amount
-    winner_storage[3] = winner_storage[3] + withdrawal_amount
+    if winner_storage[4] == 0:
+        sign = 1
+    else:
+        sign = -1
+    
+
+    total_balance = winner_storage[3] * sign
+    new_total_balance = total_balance + withdrawal_amount
+
+    if new_total_balance >= 0 :
+        winner_storage[3] = new_total_balance
+        winner_storage[4] = 0
+    else :
+        winner_storage[3] = new_total_balance * -1
+        winner_storage[4] = 1
+
     current_transaction = []
-    current_transaction.append(bet_id)
-    current_transaction.append("w") # "p : payment", "w : winning", "r : refund"
-    current_transaction.append(withdrawal_amount)
+    current_transaction.append(bet_text)
+    current_transaction.append(group_id)
+    current_transaction.append(1) # 0 : payment", 1 : winning", 2 : refund"
+    current_transaction.append(0)
+    current_transaction[3] = current_transaction[3] + withdrawal_amount
     winner_storage[2].append(current_transaction)
     index = 0
     while index < len(winner_storage[1]): 
         if winner_storage[1][index][0] == bet_text:
             if winner_storage[1][index][1] == group_id:
-                if  winner_storage[1][index][4] == "w":
+                if  winner_storage[1][index][4] == 1:
                     returnStr = "Already Payed" 
                     returnArray = []
                     returnArray.append(returnStr)
                     return returnArray
                 else:
-                    winner_storage[1][index][4] = "w"
+                    winner_storage[1][index][4] = 1
         index += 1
     Put(ctx, winner_id, Serialize(winner_storage))
     bet_storage = Serialize(bet)
@@ -915,8 +949,8 @@ def withdraw_refund(args):
 
     bet_status = get_bet_status(bet, current_block)
 
-    if bet_status != "convalidated":
-        returnStr = "Convalidation not closed" 
+    if bet_status != "validated":
+        returnStr = "validation not closed" 
         returnArray = []
         returnArray.append(returnStr)
         return returnArray      
@@ -937,14 +971,34 @@ def withdraw_refund(args):
         returnArray.append(returnStr)
         return returnArray              
 
-    refund_fee = 1000000 # 1%
-    withdrawal_amount = bet[3][3] * (100000000  - refund_fee)
-    dapp_amount = ( bet[3][3] * 100000000) - withdrawal_amount
-    player_storage[3] = player_storage[3] + withdrawal_amount
+    refund_fee = 0 # 1%
+    withdrawal_amount = (bet[3][3] * (100  - refund_fee)) / 100
+    dapp_amount = bet[3][3]  - withdrawal_amount
+
+    print(withdrawal_amount)
+
+    if player_storage[4] == 0:
+        sign = 1
+    else:
+        sign = -1
+    
+
+    total_balance = player_storage[3] * sign
+    new_total_balance = total_balance + withdrawal_amount
+
+    if new_total_balance >= 0 :
+        player_storage[3] = new_total_balance
+        player_storage[4] = 0
+    else :
+        player_storage[3] = new_total_balance * -1
+        player_storage[4] = 1
+
     current_transaction = []
-    current_transaction.append(bet_id)
-    current_transaction.append("r") # "p : payment", "w : winning", "r : refund"
-    current_transaction.append(withdrawal_amount)
+    current_transaction.append(bet_text)
+    current_transaction.append(group_id)
+    current_transaction.append(2) # "0 : payment", "1 : winning", "2 : refund"
+    current_transaction.append(0)
+    current_transaction[3] = current_transaction[3] + withdrawal_amount
     player_storage[2].append(current_transaction)
 
     index = 0
@@ -952,13 +1006,13 @@ def withdraw_refund(args):
         while index < len(player_storage[1]): 
             if player_storage[1][index][0] == bet_text:
                 if player_storage[1][index][1] == group_id:
-                    if  player_storage[1][index][4] == "r":
+                    if  player_storage[1][index][4] == 2:
                         returnStr = "Already Payed" 
                         returnArray = []
                         returnArray.append(returnStr)
                         return returnArray
                     else:
-                        player_storage[1][index][4] = "r"
+                        player_storage[1][index][4] = 2
             index += 1
     Put(ctx, player_id, Serialize(player_storage))
     
@@ -988,10 +1042,10 @@ def get_bet_status(bet, current_block):
         returnStr = "closed"
 
     elif current_block < bet[5] + bet[3][0] + bet[3][1] + bet[3][2]:
-        returnStr = "onConvalidation"
+        returnStr = "onvalidation"
 
     else:
-        returnStr = "convalidated"
+        returnStr = "validated"
     
     return returnStr
 
@@ -1030,20 +1084,20 @@ def get_player_status(bet, current_block, current_address):
         jndex = 0
         while jndex < len(bet[4][index][2]):
             if current_address == bet[4][index][2][jndex]:
-                convalidated_bet = []
-                convalidated_bet.append("y")
-                convalidated_bet.append(bet[4][index][0])
+                validated_bet = []
+                validated_bet.append("y")
+                validated_bet.append(bet[4][index][0])
             jndex += 1
         index += 1
     if partecipated_bet:
         player_status.append(partecipated_bet) # ["n", ] or ["y", partecipated proposal]
     else:
         player_status.append(["n",""])
-    if convalidated_bet:
-        player_status.append(convalidated_bet) # ["n", ] or ["y", convalidated proposal]
+    if validated_bet:
+        player_status.append(validated_bet) # ["n", ] or ["y", validated proposal]
     else:
         player_status.append(["n",""])
-    player_status.append(["nc"]) # nc not convalidated, w winning, l loseing, r refund
+    player_status.append(["nc"]) # nc not validated, w winning, l loseing, r refund
 
     winningProposal = get_winning_proposal(bet, current_block)
     if winningProposal == 1:
