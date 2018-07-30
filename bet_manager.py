@@ -25,8 +25,8 @@ def Main(operation, args):
     elif operation == 'create_bet':
         return create_bet(args)
 
-    elif operation == 'partecipate_bet':
-         return partecipate_bet(args)
+    elif operation == 'participate_bet':
+         return participate_bet(args)
 
     elif operation == 'validate_bet':
          return validate_bet(args)
@@ -76,10 +76,10 @@ def create_group(args):
         returnArray.append(returnStr)
         return returnArray
   
-    partecipants = (len(args) - 1 ) / 2
+    participants = (len(args) - 1 ) / 2
 
-    # iterate to get partecipants (address, nicknames)
-    group_partecipants = []
+    # iterate to get participants (address, nicknames)
+    group_participants = []
     index = 0
 
     while index < (len(args) - 1)/2:
@@ -94,29 +94,29 @@ def create_group(args):
     index = 0
     while index < (len(args) - 1)/2:
         address = args[index]
-        nickname = args[index + partecipants]
-        group_partecipants.append([address, nickname])
+        nickname = args[index + participants]
+        group_participants.append([address, nickname])
         if Get(ctx, address):
             fromStorage = Get(ctx, address)
-            partecipant_groups = Deserialize(fromStorage)
-            partecipant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [transactions], total_balance, total_balance sign ( 0 positiv, 1 negative) ]
-            partecipant_storage = Serialize(partecipant_groups)
+            participant_groups = Deserialize(fromStorage)
+            participant_groups[0].append(group_id)      #[[group_id1, group_id2], [ [bet1], [bet2]], [transactions], total_balance, total_balance sign ( 0 positiv, 1 negative) ]
+            participant_storage = Serialize(participant_groups)
         else:
             #create storage for the current address
-            partecipant_groups = []
-            partecipant_groups.append([])
-            partecipant_groups.append([]) 
-            partecipant_groups.append([]) 
-            partecipant_groups.append(0) 
-            partecipant_groups.append(0)
-            partecipant_groups[0].append(group_id) 
-            partecipant_storage = Serialize(partecipant_groups)
-        Put(ctx, address, partecipant_storage)
+            participant_groups = []
+            participant_groups.append([])
+            participant_groups.append([]) 
+            participant_groups.append([]) 
+            participant_groups.append(0) 
+            participant_groups.append(0)
+            participant_groups[0].append(group_id) 
+            participant_storage = Serialize(participant_groups)
+        Put(ctx, address, participant_storage)
         index += 1
 
     # proposal arguments
     group = []
-    group.append(group_partecipants)    # partecipants
+    group.append(group_participants)    # participants
 
     group_bet = []
     group.append(group_bet)
@@ -158,7 +158,7 @@ def create_bet(args):
     group_id = args[1]
     bet_text = args[2]
     blocks_accept = args[3]
-    blocks_partecipate = args[4]
+    blocks_participate = args[4]
     blocks_validate = args[5]
     amount_to_bet = args[6]
     token_used = args[7]
@@ -195,7 +195,7 @@ def create_bet(args):
         returnArray.append(returnStr)
         return returnArray
 
-    if blocks_partecipate < 0 :
+    if blocks_participate < 0 :
         returnStr = "Error in one argument"
         returnArray = []
         returnArray.append(returnStr)
@@ -269,9 +269,9 @@ def create_bet(args):
     bet.append(bet_text)
     bet.append(creator_id)
 
-    num_partecipants = len(group[0])
+    num_participants = len(group[0])
 
-    bet_data = [blocks_accept,blocks_partecipate,blocks_validate,amount_to_bet,token_used,add_results,num_partecipants]
+    bet_data = [blocks_accept,blocks_participate,blocks_validate,amount_to_bet,token_used,add_results,num_participants]
     bet_results = [] 
 
     for i in results:
@@ -299,7 +299,7 @@ def create_bet(args):
     return returnArray
 
 #function to participate at the bet
-def partecipate_bet(args):
+def participate_bet(args):
 
     #check arguments 
     if len(args) != 4:
@@ -364,7 +364,7 @@ def partecipate_bet(args):
     while index < len(address_storage[1]):
         if address_storage[1][index][0] == bet_text:
             if address_storage[1][index][1] == group_id:
-                returnStr = 'Already partecipated'
+                returnStr = 'Already participated'
                 returnArray = []
                 returnArray.append(returnStr)
                 return returnArray            
@@ -396,7 +396,7 @@ def partecipate_bet(args):
     block_at_creation = bet[5]
 
     if current_block > block_at_creation + bet[3][0]:
-        returnStr = 'Cannot partecipate at the bet'
+        returnStr = 'Cannot participate at the bet'
         returnArray = []
         returnArray.append(returnStr)
         return returnArray
@@ -410,7 +410,7 @@ def partecipate_bet(args):
 
     # check if voter has enough token in its address
 
-    # partecipate bet
+    # participate bet
     index = 0
     while index < len(bet[4]):
         if bet[4][index][0] == result:          
@@ -683,7 +683,7 @@ def withdraw_win(args):
     if winningProposal != 0 and winningProposal != 1: 
         
         if player_status[0][0] == "n":
-            returnStr = "You did not partecipated" 
+            returnStr = "You did not participated" 
             returnArray = []
             returnArray.append(returnStr)
             return returnArray           
@@ -831,7 +831,7 @@ def withdraw_refund(args):
     winningProposal = get_winning_proposal(bet, current_block)
     if winningProposal == 1: 
         if player_status[0][0] == "n":
-            returnStr = "You did not partecipated" 
+            returnStr = "You did not participated" 
             returnArray = []
             returnArray.append(returnStr)
             return returnArray                   
@@ -948,9 +948,9 @@ def get_player_status(bet, current_block, current_address):
         jndex = 0
         while jndex < len(bet[4][index][1]):
             if current_address == bet[4][index][1][jndex]:
-                partecipated_bet = []
-                partecipated_bet.append("y")
-                partecipated_bet.append(bet[4][index][0])
+                participated_bet = []
+                participated_bet.append("y")
+                participated_bet.append(bet[4][index][0])
             jndex += 1
         jndex = 0
         while jndex < len(bet[4][index][2]):
@@ -960,8 +960,8 @@ def get_player_status(bet, current_block, current_address):
                 validated_bet.append(bet[4][index][0])
             jndex += 1
         index += 1
-    if partecipated_bet:
-        player_status.append(partecipated_bet) # ["n", ] or ["y", partecipated proposal]
+    if participated_bet:
+        player_status.append(participated_bet) # ["n", ] or ["y", participated proposal]
     else:
         player_status.append(["n",""])
     if validated_bet:
